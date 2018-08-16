@@ -10,15 +10,15 @@
     {
       "id": "F972B82BA56A70CC579945773B6866FB",
       "name": "Посудомоечная машина",
-      "power": 1000,
-      "duration": 3,
+      "power": "1000",
+      "duration": 5,
       "mode": "night"
     },
     {
       "id": "F972B82BA56A70CC579945773B6866FB",
       "name": "Посудомоечная машина",
       "power": 2000,
-      "duration": 24,
+      "duration": 5,
       "mode": "night"
     },
     {

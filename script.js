@@ -21,19 +21,23 @@ getData("data.json", function(data) {
 function getConsumedEnergy(data) {
   const devices = data.devices; //Devices
   const rates = data.rates; //Rates
+  let maxPower = parseInt(data.maxPower); //Max Power
   const result = {}; //Result
-  let maxPower = data.maxPower; //Max Power
 
-  if (!devices) return "Error: Invalid Devices Data"; //Check errors
+  if (!devices) return "Error: Invalid Devices Data"; //Check devices error
+  if (!rates) return "Error: Invalid Rates Data"; //Check rates error
+  if (!maxPower || maxPower <= 0) return "Error: Invalid maxPower Data"; //Check maxPower error
 
   /* Sort Devices By Time */
   let sortDevices = sortDevicesByTime(devices, maxPower);
+  if (typeof sortDevices == "string") return sortDevices; //Check sort devices by time errors
+
   let sortDevicesPower = sortDevices.any;
   let sortDevicesPowerDay = sortDevices.day;
   let sortDevicesPowerNight = sortDevices.night;
   maxPower = sortDevices.maxPower;
 
-  if (maxPower <= 0) return "Error: Invalid Power 24-hours-a-day Device"; //Check errors
+  if (maxPower <= 0) return "Error: Invalid Power 24-hours-a-day Device"; //Check error
 
   console.log(sortDevicesPower);
   console.log(sortDevicesPowerDay);
@@ -49,25 +53,30 @@ function sortDevicesByTime(devices, maxPower) {
 
   /* Sort Time*/
   for (let key in devices) {
-    let power = devices[key].power;
-    let duration = devices[key].duration;
+    let power = parseInt(devices[key].power);
+    let duration = parseInt(devices[key].duration);
     let mode = devices[key].mode;
+    let checkPower = checkValue(power); //Check power value
+    let checkDuration = checkValue(duration); //Check duration value
 
-    if (
-      power <= 0 ||
-      power == undefined ||
-      duration <= 0 ||
-      duration == undefined
-    )
-      return "Error: Invalid Devices Values"; //Check device errors
+    if (checkPower || checkDuration || duration > 24)
+      return "Error: Invalid Power/Duration Device Value"; //Check device errors
 
     if (duration == 24) maxPower -= power; //Change max power
 
-    //Check day
+    //Check day & duration
     if (mode) {
-      if (mode == "day") devicesPowerDay[devicesPowerDay.length] = devices[key];
-      if (mode == "night")
-        devicesPowerNight[devicesPowerNight.length] = devices[key];
+      if (mode == "day") {
+        if (duration < 15)
+          devicesPowerDay[devicesPowerDay.length] = devices[key];
+        else return "Error: Invalid Device Day Duration";
+      }
+
+      if (mode == "night") {
+        if (duration < 11)
+          devicesPowerNight[devicesPowerNight.length] = devices[key];
+        else return "Error: Invalid Device Night Duration";
+      }
     } else if (mode === undefined) {
       devicesPowerAny[devicesPowerAny.length] = devices[key];
     }
@@ -91,6 +100,13 @@ function sortDevicesByTime(devices, maxPower) {
 /* Sort Power Descendingly */
 function sortDevicePower(obj) {
   return obj.sort(function(a, b) {
-    return b.power - a.power;
+    return parseInt(b.power) - parseInt(a.power);
   });
+}
+
+/* Check Value */
+function checkValue(val) {
+  let num = Number(val);
+  if (val <= 0 || val == undefined || num !== num) return true;
+  else return false;
 }
