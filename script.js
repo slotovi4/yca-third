@@ -41,7 +41,7 @@ function getConsumedEnergy(data) {
   if (maxPower <= 0) return "Error: Invalid Power 24-hours-a-day Device"; //Check error
 
   /* Sort Rates By Time */
-  sortRatesByTime(devices, rates, maxPower);
+  sortRatesByTime(rates);
 
   /* console.log(sortDevicesPower);
   console.log(sortDevicesPowerDay);
@@ -101,8 +101,8 @@ function sortDevicesByTime(devices, maxPower) {
   return sortDevicesObj;
 }
 
-/* Sort Rates By Time */
-function sortRatesByTime(devices, rates, maxPower) {
+/* Sort Rates By Time/Values */
+function sortRatesByTime(rates) {
   /* Check rates data value */
 
   /* Sort Rate By Day And Time Section */
@@ -110,9 +110,20 @@ function sortRatesByTime(devices, rates, maxPower) {
   let sortRatesNight = sortRateTime(rates, "night");
 
   /* Sort from value */
+  let sortRatesValue = sortRateValue(rates);
+  let sortRatesValueDay = sortRateValue(sortRatesDay);
+  let sortRatesValueNight = sortRateValue(sortRatesNight);
 
-  console.log(sortRatesDay);
-  console.log(sortRatesNight);
+  console.log(sortRatesValue);
+  console.log(sortRatesValueDay);
+  console.log(sortRatesValueNight);
+}
+
+/*Sort Rate Value */
+function sortRateValue(obj) {
+  return obj.sort(function(a, b) {
+    return parseFloat(a.value) - parseFloat(b.value);
+  });
 }
 
 /* Sort Rate Time */
@@ -165,24 +176,18 @@ function identifyTimeSection(from, to, time) {
     if (checkDay) {
       if (nightAndDay) from = 7;
       if (dayAndNight) to = 21;
-
-      if (rateFrom == undefined) rateFrom = p; //Get from value rate in "Day"
-
-      if (rateFrom != p) {
-        if (p == 21 || p == to) rateTo = p; //Get to value rate in "Day"
-      }
     }
 
     /* Sort If Night */
     if (checkNight) {
       if (nightAndDay) to = 7;
       if (dayAndNight) from = 21;
+    }
 
-      if (rateFrom == undefined) rateFrom = p; //Get from value rate in "Night"
-
-      if (rateFrom != p) {
-        if (p == 21 || p == to) rateTo = p; //Get to value rate in "Night"
-      }
+    /* Get from/to Value */
+    if (checkDay || checkNight) {
+      if (rateFrom == undefined) rateFrom = p; //Get from value rate in "Time"
+      if (rateFrom != p && p == to) rateTo = p; //Get to value rate in "Time"
     }
 
     /* If End Day Go To Next Day */
@@ -197,6 +202,7 @@ function identifyTimeSection(from, to, time) {
   let objResult = {};
   objResult.from = rateFrom;
   objResult.to = rateTo;
+
   return objResult;
 }
 
