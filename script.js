@@ -12,7 +12,7 @@ function getData(url, callback) {
   xobj.send();
 }
 
-getData("data.json", function(data) {
+getData("data1.json", function(data) {
   let result = getConsumedEnergy(data);
   //console.log(result);
 });
@@ -22,11 +22,12 @@ function getConsumedEnergy(data) {
   const devices = data.devices; //Devices
   const rates = data.rates; //Rates
   let maxPower = parseInt(data.maxPower); //Max Power
+  let checkMaxPower = checkValue(maxPower);
   const result = {}; //Result
 
   if (!devices) return "Error: Invalid Devices Data"; //Check devices error
   if (!rates) return "Error: Invalid Rates Data"; //Check rates error
-  if (!maxPower || maxPower <= 0) return "Error: Invalid maxPower Data"; //Check maxPower error
+  if (checkMaxPower) return "Error: Invalid maxPower Data"; //Check maxPower error
 
   /* Sort Devices By Time */
   let sortDevices = sortDevicesByTime(devices, maxPower);
@@ -39,10 +40,13 @@ function getConsumedEnergy(data) {
 
   if (maxPower <= 0) return "Error: Invalid Power 24-hours-a-day Device"; //Check error
 
-  console.log(sortDevicesPower);
+  /* Sort Rates By Time */
+  sortRatesByTime(devices, rates, maxPower);
+
+  /* console.log(sortDevicesPower);
   console.log(sortDevicesPowerDay);
   console.log(sortDevicesPowerNight);
-  console.log(maxPower);
+  console.log(maxPower); */
 }
 
 /* Sort Devices By Time/Power & Change maxPower */
@@ -95,6 +99,105 @@ function sortDevicesByTime(devices, maxPower) {
   sortDevicesObj.maxPower = maxPower;
 
   return sortDevicesObj;
+}
+
+/* Sort Rates By Time */
+function sortRatesByTime(devices, rates, maxPower) {
+  /* Check rates data value */
+
+  /* Sort Rate By Day And Time Section */
+  let sortRatesDay = sortRateTime(rates, "day");
+  let sortRatesNight = sortRateTime(rates, "night");
+
+  /* Sort from value */
+
+  console.log(sortRatesDay);
+  console.log(sortRatesNight);
+}
+
+/* Sort Rate Time */
+function sortRateTime(rates, time) {
+  let ratesTime = []; //Result
+
+  for (let key in rates) {
+    let from = parseInt(rates[key].from); //From value
+    let to = parseInt(rates[key].to); //To value
+    let value = parseFloat(rates[key].value); //Rate value
+
+    /* Get From/To Value Time Section */
+    let rateObj = identifyTimeSection(from, to, time);
+
+    /* Result */
+    rateObj.value = value;
+    if (rateObj.value && rateObj.from && rateObj.to)
+      ratesTime[ratesTime.length] = rateObj;
+  }
+
+  return ratesTime;
+}
+
+/* Sort Time Day & Identify Time Section */
+function identifyTimeSection(from, to, time) {
+  let oldTo = to; //Save old value
+  let rateFrom; //New from value
+  let rateTo; //New to value
+  let nextDay = false; //Next day?
+
+  /* Check Next Day */
+  if (from > to) {
+    to = 23; //End day
+    nextDay = true;
+  }
+
+  for (let p = from; p <= to; p++) {
+    let checkDay = false; //"Day" section
+    let checkNight = false; //"Night" section
+    let nightAndDay = false; //From "night" to "day" section
+    let dayAndNight = false; //From "day" to "night" section
+
+    /* Check Time Section */
+    if (p >= 7 && p <= 21 && time == "day") checkDay = true;
+    if (((p >= 21 && p < 24) || p <= 7) && time == "night") checkNight = true;
+    if (from < 7 && to > 7) nightAndDay = true;
+    if (from > 7 && to > 21) dayAndNight = true;
+
+    /* Sort If Day */
+    if (checkDay) {
+      if (nightAndDay) from = 7;
+      if (dayAndNight) to = 21;
+
+      if (rateFrom == undefined) rateFrom = p; //Get from value rate in "Day"
+
+      if (rateFrom != p) {
+        if (p == 21 || p == to) rateTo = p; //Get to value rate in "Day"
+      }
+    }
+
+    /* Sort If Night */
+    if (checkNight) {
+      if (nightAndDay) to = 7;
+      if (dayAndNight) from = 21;
+
+      if (rateFrom == undefined) rateFrom = p; //Get from value rate in "Night"
+
+      if (rateFrom != p) {
+        if (p == 21 || p == to) rateTo = p; //Get to value rate in "Night"
+      }
+    }
+
+    /* If End Day Go To Next Day */
+    if (nextDay && p == 23) {
+      from = 0;
+      p = 0;
+      to = oldTo;
+    }
+  }
+
+  /* Result */
+  let objResult = {};
+  objResult.from = rateFrom;
+  objResult.to = rateTo;
+  return objResult;
 }
 
 /* Sort Power Descendingly */
