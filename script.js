@@ -14,43 +14,171 @@ function getData(url, callback) {
 
 getData("data1.json", function(data) {
   let result = getConsumedEnergy(data);
-  //console.log(result);
+  console.log(result);
 });
 
-/* Get Consumed Energy*/
+/* Get Consumed Energy */
 function getConsumedEnergy(data) {
   const devices = data.devices; //Devices
   const rates = data.rates; //Rates
   let maxPower = parseInt(data.maxPower); //Max Power
   let checkMaxPower = checkValue(maxPower);
-  const result = {}; //Result
+  let maxPowerArr = []; //Array containing power hours
+  let result = {}; //Result
+  result.schedule = {};
+  result.consumedEnergy = {};
+  result.consumedEnergy.value = 0;
+  result.consumedEnergy.devices = {};
 
-  if (!devices) return "Error: Invalid Devices Data"; //Check devices error
-  if (!rates) return "Error: Invalid Rates Data"; //Check rates error
-  if (checkMaxPower) return "Error: Invalid maxPower Data"; //Check maxPower error
+  if (!devices) throw "Error: Invalid Devices Data"; //Check devices error
+  if (!rates) throw "Error: Invalid Rates Data"; //Check rates error
+  if (checkMaxPower) throw "Error: Invalid maxPower Data"; //Check maxPower error
 
   /* Sort Devices By Time */
-  let sortDevices = sortDevicesByTime(devices, maxPower);
-  if (typeof sortDevices == "string") return sortDevices; //Check sort devices by time errors
+  let sortDevices = sortDevicesByTime(devices, maxPower, result, maxPowerArr);
+  let sortDevicesAny = sortDevices.any;
+  let sortDevicesDay = sortDevices.day;
+  let sortDevicesNight = sortDevices.night;
 
-  let sortDevicesPower = sortDevices.any;
-  let sortDevicesPowerDay = sortDevices.day;
-  let sortDevicesPowerNight = sortDevices.night;
-  maxPower = sortDevices.maxPower;
-
-  if (maxPower <= 0) return "Error: Invalid Power 24-hours-a-day Device"; //Check error
+  if (sortDevices.maxPower <= 0)
+    throw "Error: Invalid Power 24-hours-a-day Device"; //Check error
 
   /* Sort Rates By Time */
-  sortRatesByTime(rates);
+  let sortRates = sortRatesByTime(rates);
+  let sortRatesAny = sortRates.any;
+  let sortRatesDay = sortRates.day;
+  let sortRatesNight = sortRates.night;
 
-  /* console.log(sortDevicesPower);
-  console.log(sortDevicesPowerDay);
-  console.log(sortDevicesPowerNight);
-  console.log(maxPower); */
+  /* Optimize Energy */
+  consumedEnergy(sortDevicesDay, sortRatesDay, maxPower, result, maxPowerArr);
+  consumedEnergy(
+    sortDevicesNight,
+    sortRatesNight,
+    maxPower,
+    result,
+    maxPowerArr
+  );
+  consumedEnergy(sortDevicesAny, sortRatesAny, maxPower, result, maxPowerArr);
+
+  /* Get Consumed Energy Value */
+  let consumedDevEnergy = result.consumedEnergy.devices;
+  for (let key in consumedDevEnergy) {
+    result.consumedEnergy.value += consumedDevEnergy[key];
+  }
+
+  //console.log(sortRatesAny);
+  //console.log(sortRatesDay);
+  //console.log(sortRatesNight);
+
+  //console.log(sortDevicesAny);
+  //console.log(sortDevicesDay);
+  //console.log(sortDevicesNight);
+  //console.log(maxPower);
+
+  //console.log(result);
+  //console.log(maxPowerArr);
+
+  return result;
+}
+
+/* Optimize Energy */
+function consumedEnergy(devices, rates, maxPower, result, maxPowerArr) {
+  for (let devKey in devices) {
+    let deviceId = devices[devKey].id; //Device id
+    let deviceDuration = devices[devKey].duration; //Device duration
+    let devicePower = parseInt(devices[devKey].power); //Device power
+
+    if (deviceDuration == 24) {
+      /* Calc energy */
+      for (let key in rates) {
+        if (result.consumedEnergy.devices[deviceId] == undefined)
+          result.consumedEnergy.devices[deviceId] = 0; //Check empty value device energy
+
+        let value = rates[key].value; //Rate value
+        let from = rates[key].from; //Rate value
+        let to = rates[key].to; //Rate value
+        let oldTo = to;
+        let nextDay = false;
+
+        /* Check Next Day */
+        if (from > to) {
+          to = 24; //End day
+          nextDay = true;
+        }
+
+        for (i = from; i < to; i++) {
+          let optDeviceEnergy = (devicePower * value) / 1000; //Optimized energy
+          result.consumedEnergy.devices[deviceId] += optDeviceEnergy;
+
+          /* If End Day Go To Next Day */
+          if (nextDay && i == 23) {
+            from = 0;
+            i = -1;
+            to = oldTo;
+          }
+        }
+      }
+    } else {
+      do {
+        for (let rateKey in rates) {
+          let from = rates[rateKey].from; //Rate from
+          let to = rates[rateKey].to; //Rate to
+          let value = rates[rateKey].value; //Rate value
+          let oldTo = to;
+          let nextDay = false;
+
+          let rateTime = to - from;
+
+          /* Check Next Day */
+          if (from > to) {
+            rateTime = 24 - from + to;
+            to = 24; //End day
+            nextDay = true;
+          }
+
+          let optDeviceEnergy = (devicePower * value) / 1000; //Optimized energy
+
+          for (let p = from; p < to; p++) {
+            //if continuous operation of the device is possible
+            if (deviceDuration > 0 && rateTime >= deviceDuration) {
+              if (maxPowerArr[p] == undefined) maxPowerArr[p] = 0; //Check empty value maxpower
+              if (result.schedule[p] == undefined) result.schedule[p] = []; //Check empty value device id
+              if (result.consumedEnergy.devices[deviceId] == undefined)
+                result.consumedEnergy.devices[deviceId] = 0; //Check empty value device energy
+
+              //if the power is not at the limit => entry device
+              if (maxPowerArr[p] + devicePower <= maxPower) {
+                //If device absent
+                if (result.schedule[p].indexOf(deviceId) === -1) {
+                  maxPowerArr[p] += devicePower; //Add power in power Array
+                  result.schedule[p].push(deviceId); //Add id in schedule result
+                  result.consumedEnergy.devices[deviceId] += optDeviceEnergy;
+                }
+
+                deviceDuration--; //if the entry was
+              } else rateTime--; //if was no entry
+            }
+
+            /* If the device has nowhere to place */
+            if (parseInt(rateKey) + 1 == rates.length && deviceDuration > 0) {
+              throw "Error: Unable to schedule";
+            }
+
+            /* If End Day Go To Next Day */
+            if (nextDay && p == 23) {
+              from = 0;
+              p = -1;
+              to = oldTo;
+            }
+          }
+        }
+      } while (deviceDuration > 0);
+    }
+  }
 }
 
 /* Sort Devices By Time/Power & Change maxPower */
-function sortDevicesByTime(devices, maxPower) {
+function sortDevicesByTime(devices, maxPower, result, maxPowerArr) {
   let devicesPowerAny = []; //Any time
   let devicesPowerDay = []; //Day
   let devicesPowerNight = []; //Night
@@ -60,26 +188,36 @@ function sortDevicesByTime(devices, maxPower) {
     let power = parseInt(devices[key].power);
     let duration = parseInt(devices[key].duration);
     let mode = devices[key].mode;
+    let id = devices[key].id;
     let checkPower = checkValue(power); //Check power value
     let checkDuration = checkValue(duration); //Check duration value
 
     if (checkPower || checkDuration || duration > 24)
-      return "Error: Invalid Power/Duration Device Value"; //Check device errors
+      throw "Error: Invalid Power/Duration Device Value"; //Check device errors
 
-    if (duration == 24) maxPower -= power; //Change max power
+    //Add this devise in result.schedule
+    if (duration == 24) {
+      for (let i = 0; i < 24; i++) {
+        if (result.schedule[i] == undefined) result.schedule[i] = [];
+        if (maxPowerArr[i] == undefined) maxPowerArr[i] = 0;
+        result.schedule[i].push(id);
+        maxPowerArr[i] += power;
+      }
+      maxPower -= power; //Change max power
+    }
 
     //Check day & duration
     if (mode) {
       if (mode == "day") {
         if (duration < 15)
           devicesPowerDay[devicesPowerDay.length] = devices[key];
-        else return "Error: Invalid Device Day Duration";
+        else throw "Error: Invalid Device Day Duration";
       }
 
       if (mode == "night") {
         if (duration < 11)
           devicesPowerNight[devicesPowerNight.length] = devices[key];
-        else return "Error: Invalid Device Night Duration";
+        else throw "Error: Invalid Device Night Duration";
       }
     } else if (mode === undefined) {
       devicesPowerAny[devicesPowerAny.length] = devices[key];
@@ -103,7 +241,8 @@ function sortDevicesByTime(devices, maxPower) {
 
 /* Sort Rates By Time/Values */
 function sortRatesByTime(rates) {
-  /* Check rates data value */
+  /* Check rates error */
+  checkRatesDataValues(rates);
 
   /* Sort Rate By Day And Time Section */
   let sortRatesDay = sortRateTime(rates, "day");
@@ -114,9 +253,52 @@ function sortRatesByTime(rates) {
   let sortRatesValueDay = sortRateValue(sortRatesDay);
   let sortRatesValueNight = sortRateValue(sortRatesNight);
 
-  console.log(sortRatesValue);
-  console.log(sortRatesValueDay);
-  console.log(sortRatesValueNight);
+  /* Result */
+  let obj = {};
+  obj.any = sortRatesValue;
+  obj.day = sortRatesValueDay;
+  obj.night = sortRatesValueNight;
+
+  return obj;
+}
+
+/* Check Rates Data Values */
+function checkRatesDataValues(rates) {
+  let valuesArr = [];
+  for (let key in rates) {
+    let from = parseInt(rates[key].from);
+    let to = parseInt(rates[key].to);
+    let oldTo = to;
+    let nextDay = false;
+
+    /* Check Next Day */
+    if (from > to) {
+      to = 24; //End day
+      nextDay = true;
+    }
+
+    for (let p = from; p < to; p++) {
+      valuesArr[valuesArr.length] = p;
+
+      /* If End Day Go To Next Day */
+      if (nextDay && p == 23) {
+        from = 0;
+        p = 0;
+        to = oldTo;
+        valuesArr[valuesArr.length] = p;
+      }
+    }
+  }
+
+  /* Sort Array */
+  valuesArr.sort(function(a, b) {
+    return a - b;
+  });
+
+  /*Check Array */
+  if (valuesArr.length != 24) throw "Error: Wrong rates time interval";
+  if (valuesArr[0] != 0 || valuesArr[23] != 23)
+    throw "Error: Wrong rates values";
 }
 
 /*Sort Rate Value */

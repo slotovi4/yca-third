@@ -4,26 +4,26 @@
       "id": "F972B82BA56A70CC579945773B6866FB",
       "name": "Посудомоечная машина",
       "power": 950,
-      "duration": 3,
+      "duration": 1,
       "mode": "night"
     },
     {
-      "id": "F972B82BA56A70CC579945773B6866FB",
+      "id": "F1072B82BA56A70CC579945773B6866FB",
       "name": "Посудомоечная машина",
       "power": "1000",
       "duration": 5,
       "mode": "night"
     },
     {
-      "id": "F972B82BA56A70CC579945773B6866FB",
+      "id": "F1172B82BA56A70CC579945773B6866FB",
       "name": "Посудомоечная машина",
       "power": 2000,
-      "duration": 5,
+      "duration": 3,
       "mode": "night"
     },
     {
-      "id": "C515D887EDBBE669B2FDAC62F571E9E9",
-      "name": "Духовка",
+      "id": "C615D887EDBBE669B2FDAC62F571E9E9",
+      "name": "Духовка1",
       "power": 2000,
       "duration": 2,
       "mode": "day"
@@ -35,15 +35,15 @@
       "duration": 24
     },
     {
-      "id": "C515D887EDBBE669B2FDAC62F571E9E9",
-      "name": "Духовка",
+      "id": "C715D887EDBBE669B2FDAC62F571E9E9",
+      "name": "Духовка2",
       "power": 1000,
       "duration": 2,
       "mode": "day"
     },
     {
-      "id": "C515D887EDBBE669B2FDAC62F571E9E9",
-      "name": "Духовка",
+      "id": "C815D887EDBBE669B2FDAC62F571E9E9",
+      "name": "Духовка3",
       "power": 500,
       "duration": 2,
       "mode": "day"
@@ -63,33 +63,28 @@
   ],
   "rates": [
     {
-      "from": 7,
-      "to": 10,
-      "value": 6.46
-    },
-    {
       "from": 10,
-      "to": 17,
+      "to": 15,
       "value": 5.38
     },
     {
-      "from": 17,
-      "to": 21,
-      "value": 6.46
-    },
-    {
-      "from": 21,
+      "from": 22,
       "to": 23,
       "value": 5.38
     },
     {
       "from": 23,
-      "to": 7,
+      "to": 4,
       "value": 1.79
     },
     {
       "from": 4,
       "to": 8,
+      "value": 0.5
+    },
+    {
+      "from": 8,
+      "to": 10,
       "value": 1
     },
     {
