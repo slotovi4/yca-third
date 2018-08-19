@@ -1,0 +1,47 @@
+{
+  "devices": [
+    {
+      "id": "C515D887EDBBE669B2FDAC62F571E9E9",
+      "name": "Духовка",
+      "power": 1500,
+      "duration": 10,
+      "mode": "day"
+    },
+    {
+      "id": "02DDD23A85DADDD71198305330CC386D",
+      "name": "Холодильник",
+      "power": 2000,
+      "duration": 2,
+      "mode": "day"
+    },
+    {
+      "id": "CCDSAS23A85DADDD71198305330CC386D",
+      "name": "Холодильник",
+      "power": 10,
+      "duration": 24
+    }
+  ],
+  "rates": [
+    {
+      "from": 7,
+      "to": 13,
+      "value": 2
+    },
+    {
+      "from": 13,
+      "to": 15,
+      "value": 1
+    },
+    {
+      "from": 15,
+      "to": 21,
+      "value": 3
+    },
+    {
+      "from": 21,
+      "to": 7,
+      "value": 5.38
+    }
+  ],
+  "maxPower": 2100
+}

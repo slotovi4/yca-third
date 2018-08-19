@@ -11,7 +11,7 @@
       "id": "F1072B82BA56A70CC579945773B6866FB",
       "name": "Посудомоечная машина",
       "power": "1000",
-      "duration": 5,
+      "duration": 1,
       "mode": "night"
     },
     {
@@ -38,7 +38,7 @@
       "id": "C715D887EDBBE669B2FDAC62F571E9E9",
       "name": "Духовка2",
       "power": 1000,
-      "duration": 2,
+      "duration": 12,
       "mode": "day"
     },
     {
@@ -57,7 +57,7 @@
     {
       "id": "7D9DC84AD110500D284B33C82FE6E85E",
       "name": "Кондиционер",
-      "power": 850,
+      "power": 2000,
       "duration": 1
     }
   ],

@@ -1,5 +1,5 @@
 /*Get Test Data*/
-function getData(url, callback) {
+/* function getData(url, callback) {
   let xobj = new XMLHttpRequest();
   xobj.overrideMimeType("application/json");
   xobj.open("GET", url, true);
@@ -12,10 +12,10 @@ function getData(url, callback) {
   xobj.send();
 }
 
-getData("data1.json", function(data) {
+getData("data.json", function(data) {
   let result = getConsumedEnergy(data);
   console.log(result);
-});
+}); */
 
 /* Get Consumed Energy */
 function getConsumedEnergy(data) {
@@ -50,33 +50,24 @@ function getConsumedEnergy(data) {
   let sortRatesNight = sortRates.night;
 
   /* Optimize Energy */
-  consumedEnergy(sortDevicesDay, sortRatesDay, maxPower, result, maxPowerArr);
-  consumedEnergy(
-    sortDevicesNight,
-    sortRatesNight,
-    maxPower,
-    result,
-    maxPowerArr
-  );
-  consumedEnergy(sortDevicesAny, sortRatesAny, maxPower, result, maxPowerArr);
+  if (sortDevicesDay.length != 0)
+    consumedEnergy(sortDevicesDay, sortRatesDay, maxPower, result, maxPowerArr);
+  if (sortDevicesNight.length != 0)
+    consumedEnergy(
+      sortDevicesNight,
+      sortRatesNight,
+      maxPower,
+      result,
+      maxPowerArr
+    );
+  if (sortDevicesAny.length != 0)
+    consumedEnergy(sortDevicesAny, sortRatesAny, maxPower, result, maxPowerArr);
 
   /* Get Consumed Energy Value */
   let consumedDevEnergy = result.consumedEnergy.devices;
   for (let key in consumedDevEnergy) {
     result.consumedEnergy.value += consumedDevEnergy[key];
   }
-
-  //console.log(sortRatesAny);
-  //console.log(sortRatesDay);
-  //console.log(sortRatesNight);
-
-  //console.log(sortDevicesAny);
-  //console.log(sortDevicesDay);
-  //console.log(sortDevicesNight);
-  //console.log(maxPower);
-
-  //console.log(result);
-  //console.log(maxPowerArr);
 
   return result;
 }
@@ -87,18 +78,34 @@ function consumedEnergy(devices, rates, maxPower, result, maxPowerArr) {
     let deviceId = devices[devKey].id; //Device id
     let deviceDuration = devices[devKey].duration; //Device duration
     let devicePower = parseInt(devices[devKey].power); //Device power
+    let allDayDev = false; //If device duration = 24
+    var latestTo = false; //Last "to" value previous rate
+    let checkMaxPowerAppend = checkPowerDeviceToAppend(
+      devicePower,
+      maxPowerArr,
+      maxPower
+    ); //Check append device power
 
-    if (deviceDuration == 24) {
-      /* Calc energy */
-      for (let key in rates) {
+    if (devicePower > maxPower) throw "Error: Invalid Device Power";
+    if (!checkMaxPowerAppend) throw "Error: Unable To Schedule Device Power";
+    if (deviceDuration == 24) allDayDev = true;
+
+    do {
+      for (let rateKey in rates) {
+        let from = rates[rateKey].from; //Rate from
+        let to = rates[rateKey].to; //Rate to
+        let value = rates[rateKey].value; //Rate value
+        let oldTo = to; //Old "to" value
+        let nextDay = false; //Next Day
+        let nextRate = false; //Next rate
+        let optDeviceEnergy = (devicePower * value) / 1000; //Optimized energy
+
+        /* If can go to next rate */
+        if (from == latestTo) nextRate = true;
+        else if (latestTo == false) nextRate = true;
+
         if (result.consumedEnergy.devices[deviceId] == undefined)
           result.consumedEnergy.devices[deviceId] = 0; //Check empty value device energy
-
-        let value = rates[key].value; //Rate value
-        let from = rates[key].from; //Rate value
-        let to = rates[key].to; //Rate value
-        let oldTo = to;
-        let nextDay = false;
 
         /* Check Next Day */
         if (from > to) {
@@ -106,45 +113,16 @@ function consumedEnergy(devices, rates, maxPower, result, maxPowerArr) {
           nextDay = true;
         }
 
-        for (i = from; i < to; i++) {
-          let optDeviceEnergy = (devicePower * value) / 1000; //Optimized energy
-          result.consumedEnergy.devices[deviceId] += optDeviceEnergy;
-
-          /* If End Day Go To Next Day */
-          if (nextDay && i == 23) {
-            from = 0;
-            i = -1;
-            to = oldTo;
-          }
-        }
-      }
-    } else {
-      do {
-        for (let rateKey in rates) {
-          let from = rates[rateKey].from; //Rate from
-          let to = rates[rateKey].to; //Rate to
-          let value = rates[rateKey].value; //Rate value
-          let oldTo = to;
-          let nextDay = false;
-
-          let rateTime = to - from;
-
-          /* Check Next Day */
-          if (from > to) {
-            rateTime = 24 - from + to;
-            to = 24; //End day
-            nextDay = true;
-          }
-
-          let optDeviceEnergy = (devicePower * value) / 1000; //Optimized energy
-
-          for (let p = from; p < to; p++) {
-            //if continuous operation of the device is possible
-            if (deviceDuration > 0 && rateTime >= deviceDuration) {
+        for (let p = from; p < to; p++) {
+          //If device duration = 24, only calc energy
+          if (allDayDev) {
+            result.consumedEnergy.devices[deviceId] += optDeviceEnergy;
+            deviceDuration--;
+          } else {
+            if (deviceDuration > 0 && nextRate) {
+              //if continuous operation of the device is possible
               if (maxPowerArr[p] == undefined) maxPowerArr[p] = 0; //Check empty value maxpower
               if (result.schedule[p] == undefined) result.schedule[p] = []; //Check empty value device id
-              if (result.consumedEnergy.devices[deviceId] == undefined)
-                result.consumedEnergy.devices[deviceId] = 0; //Check empty value device energy
 
               //if the power is not at the limit => entry device
               if (maxPowerArr[p] + devicePower <= maxPower) {
@@ -156,24 +134,33 @@ function consumedEnergy(devices, rates, maxPower, result, maxPowerArr) {
                 }
 
                 deviceDuration--; //if the entry was
-              } else rateTime--; //if was no entry
-            }
 
-            /* If the device has nowhere to place */
-            if (parseInt(rateKey) + 1 == rates.length && deviceDuration > 0) {
-              throw "Error: Unable to schedule";
-            }
-
-            /* If End Day Go To Next Day */
-            if (nextDay && p == 23) {
-              from = 0;
-              p = -1;
-              to = oldTo;
+                //If end rate
+                if (p + 1 == to) {
+                  var latestTo = to;
+                }
+              }
             }
           }
+
+          /* If End Day Go To Next Day */
+          if (nextDay && p == 23) {
+            from = 0;
+            p = -1;
+            to = oldTo;
+          }
         }
-      } while (deviceDuration > 0);
-    }
+
+        /* If the device has nowhere to place */
+        if (
+          parseInt(rateKey) + 1 == rates.length &&
+          deviceDuration > 0 &&
+          nextRate == false
+        ) {
+          throw "Error: Unable to schedule";
+        }
+      }
+    } while (deviceDuration > 0);
   }
 }
 
@@ -400,4 +387,13 @@ function checkValue(val) {
   let num = Number(val);
   if (val <= 0 || val == undefined || num !== num) return true;
   else return false;
+}
+
+/* Check Pover Device For The Possibility Of Adding To maxPowerArr */
+function checkPowerDeviceToAppend(devicePower, maxPowerArr, maxPower) {
+  for (let i = 0; i < 24; i++) {
+    if (maxPowerArr[i] == undefined) maxPowerArr[i] = 0;
+    if (maxPowerArr[i] + devicePower <= maxPower) return true;
+  }
+  return false;
 }
